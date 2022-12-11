@@ -4,7 +4,7 @@
 * 此為用作同步Reko Wiki (https://rekowiki.tk/wiki/index.php) 和 Fandom K wiki (https://newkomica-kari.fandom.com/zh-tw/wiki/%E9%A6%96%E9%A0%81) 頁面的腳本
 * 可選定一個wiki作編輯，之後用此腳本同步至另外的wiki中
 * 留意：
-    * 此腳本暫只能同步正常頁面，暫不能用作同步模版、分頁、或是檔案
+    * 此腳本暫只能同步正常頁面，暫不能用作同步模版、分頁、或是檔案等特殊頁面
     * 如頁面中有檔案，此腳本不能同時更新頁面中的檔案
 
 ## 必備條件
@@ -18,14 +18,12 @@
     * Fandom K wiki：https://newkomica-kari.fandom.com/zh-tw/wiki/%E7%89%B9%E6%AE%8A:BotPasswords
     * 要求權限：
         * 大量編輯
-        * 匯入修訂版本	
-        * 編輯現有的頁面	
+        * 匯入修訂版本
+        * 編輯現有的頁面
         * 編輯受保護的頁面
-        * 建立、編輯與移動頁面	
+        * 建立、編輯與移動頁面
         * 上傳新檔案	
         * 上傳、取代與移動檔案
-        * 保護與取消保護頁面
-
 
 ## 使用文法
 * 設定 config.json
@@ -34,11 +32,11 @@
     * 修改 config.json 中的資料
         * 設定來源
         ```
-        "source": "reko",
+        "source": "fandom",
         ```
         * 設定目的地
         ```
-        "target": [ "fandom" ],
+        "target": [ "reko" ],
         ```
         * 設定Reko Wiki 機械人用戶資料
         ```
@@ -73,9 +71,9 @@ python sync_page.py
 ```
 * 如成功執行，會出現以下訊息
 ```
-同步 reko => ['fandom']
+同步 fandom => ['reko']
 同步頁面： カードファイト!! ヴァンガード overDress
-頁面同步到fandom成功!
+頁面同步到reko成功!
 ...
 ```
 
