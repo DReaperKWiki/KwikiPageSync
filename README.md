@@ -61,7 +61,7 @@
             ...            
         ]
         ```
-* 在命令提示字元 (Command Prompt)中，移到腳本所在的資料夾
+* 在命令提示字元 (Command Prompt)中，移到腳本中sync_page.py所在的資料夾
 ```
 cd C:\<資料夾位置>
 ```
