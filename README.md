@@ -2,7 +2,7 @@
 
 ## 說明
 * 此為用作同步Reko Wiki (https://rekowiki.tk/wiki/index.php) 和 Fandom K wiki (https://newkomica-kari.fandom.com/zh-tw/wiki/%E9%A6%96%E9%A0%81) 頁面的腳本
-* 作者可選定一個wiki作編輯，之後用此腳本同步至另外的wiki中
+* 可選定一個wiki作編輯，之後用此腳本同步至另外的wiki中
 * 留意：
     * 此腳本暫只能同步正常頁面，暫不能用作同步模版、分頁、或是檔案
     * 如頁面中有檔案，此腳本不能同時更新頁面中的檔案
