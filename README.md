@@ -15,7 +15,7 @@
     * 安裝後，在命令提示字元 (Command Prompt) 中打入 "python --version" (或"python3 --version") 會出現 "Python 3.x.x"
 * 註冊機械人用戶    
     * Reko Wiki：https://rekowiki.tk/wiki/index.php/%E7%89%B9%E6%AE%8A:BotPasswords
-    * Fandom K wiki：https://rekowiki.tk/wiki/index.php/%E7%89%B9%E6%AE%8A:BotPasswords
+    * Fandom K wiki：https://newkomica-kari.fandom.com/zh-tw/wiki/%E7%89%B9%E6%AE%8A:BotPasswords
     * 要求權限：
         * 大量編輯
         * 匯入修訂版本	
