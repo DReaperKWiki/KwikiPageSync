@@ -2,6 +2,16 @@
 import json
 import requests
 
+def answer(equation):
+    x = 0
+    if '+' in equation:
+        y = equation.split('+')
+        x = int(y[0])+int(y[1])
+    elif '−' in equation:
+        y = equation.split('-')
+        x = int(y[0])-int(y[1])
+    return x
+
 class WikiSync():
 
     def __init__ (self, source, targets):
@@ -15,8 +25,8 @@ class WikiSync():
             return
         srcCode = self.edit_src(srcCode)
         for key in self.targets:
-            res = self.post_edit(self.targets[key], title, srcCode)
-            if res.status_code == 200:
+            update_suc, res = self.post_edit(self.targets[key], title, srcCode)
+            if update_suc:
                 print("頁面同步到{}成功!".format(key))
             else:
                 print("頁面同步到{}失敗:".format(key), res.status_code, res.text)
@@ -36,13 +46,25 @@ class WikiSync():
         wikicode = page['revisions'][0]['*']
         return wikicode
 
-    def edit_src(self, srcCode):        
+    def edit_src(self, srcCode):
         lines = srcCode.split('\n')
-        for idx in range(0, len(lines)):            
-            if lines[idx].lower().find("{{h0") >= 0:                
+        for idx in range(0, len(lines)):
+            if lines[idx].lower().find("{{h0") >= 0:
                 lines.insert(idx+1, "{{mirrorpage}}")
                 break
         return ('\n'.join(lines))
+    
+    def check_success(self, res):
+        data = res.json()
+        if res.status_code != 200:
+            return False, data
+        if "edit" not in data:
+            return False, data
+        if "result" not in data["edit"]:
+            return False, data
+        if data["edit"]["result"] != "Success":
+            return False, data
+        return True, data
     
     def post_edit(self, target, title, srcCode):
         sess = requests.Session()
@@ -55,7 +77,7 @@ class WikiSync():
         }
         res = sess.get(url=target["url"], params=para)
         data = res.json()
-        tokens = data['query']['tokens']['logintoken']        
+        tokens = data['query']['tokens']['logintoken']
         # Send a post request to login.
         para = {
             "action": "login",
@@ -73,22 +95,33 @@ class WikiSync():
         }
         res = sess.get(url=target["url"], params=para)
         data = res.json()
-        csrf_tokens = data['query']['tokens']['csrftoken']        
+        csrf_tokens = data['query']['tokens']['csrftoken']
         # POST request to edit a page
         para = {
             "action": "edit",
             "title": title,
             "token": csrf_tokens,
-            "format": "json",            
+            "format": "json",
             "text": srcCode,
             "summary": "Wiki-Bot 同步更新", 
             "bot": True
         }
         res = sess.post(url=target["url"], data=para)
-        return res
+        # check if captcha is needed
+        suc, data = self.check_success(res)
+        if not suc:
+            if "captcha" in data["edit"]:
+                captcha_id = data["edit"]["captcha"]["id"]
+                captcha_q = data["edit"]["captcha"]["question"]
+                ans = answer(captcha_q)
+                para["captchaword"] = str(ans)
+                para["captchaid"] = captcha_id
+                res = sess.post(url=target["url"], data=para)
+                suc, data = self.check_success(res)
+        return suc, res
 
 
-if __name__ == "__main__":    
+if __name__ == "__main__":
     # read config
     data = {}
     with open("config.json", "r") as jsonfile:
@@ -146,6 +179,8 @@ if __name__ == "__main__":
             print("錯誤:不能同步使用者專頁")
         elif en.startswith("特殊"):
             print("錯誤:不能同步特殊分頁")
+        elif en.startswith("模板"):
+            print("錯誤:不能同步模板")
         else:
             print("同步頁面：", en)
             synchronizer.sync_page(en)
