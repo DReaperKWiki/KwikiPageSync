@@ -138,6 +138,15 @@ if __name__ == "__main__":
     synchronizer = WikiSync(source, targets)
     
     for en in data["pages"]:
-        print("同步頁面：", en)
-        synchronizer.sync_page(en)
+        if en.startswith("首頁"):
+            print("錯誤:不能同步首頁")
+        elif en.startswith("檔案"):
+            print("錯誤:不能同步檔案")
+        elif en.startswith("使用者"):
+            print("錯誤:不能同步使用者專頁")
+        elif en.startswith("特殊"):
+            print("錯誤:不能同步特殊分頁")
+        else:
+            print("同步頁面：", en)
+            synchronizer.sync_page(en)
 
