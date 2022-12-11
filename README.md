@@ -65,7 +65,7 @@
 ```
 cd C:\<資料夾位置>
 ```
-* 在命令提示字元 (Command Prompt)中，用python運行腳本
+* 在命令提示字元 (Command Prompt)中，用python運行腳本 (留意：所使用的指令不一定是python，有可能是python3或是python3.x，請等參照自己的OS環境)
 ```
 python sync_page.py
 ```
