@@ -8,7 +8,7 @@ def answer(equation):
         y = equation.split('+')
         x = int(y[0])+int(y[1])
     elif '−' in equation:
-        y = equation.split('-')
+        y = equation.split('−')
         x = int(y[0])-int(y[1])
     return x
 
@@ -20,6 +20,9 @@ class WikiSync():
 
     def sync_page(self, title):
         srcCode = self.query_page(title)  
+        if srcCode is None:
+            print("錯誤！找不到頁面{}!".format(title))
+            return
         if srcCode.lower().find("{{mirrorpage}}") >= 0:
             print("錯誤！{}為鏡面頁面!".format(title))
             return
@@ -42,16 +45,22 @@ class WikiSync():
                 'rvprop': 'content'
             }
         ).json()
+        if '-1' in response['query']['pages']:
+            return None
         page = next(iter(response['query']['pages'].values()))
         wikicode = page['revisions'][0]['*']
         return wikicode
 
     def edit_src(self, srcCode):
         lines = srcCode.split('\n')
+        found = False
         for idx in range(0, len(lines)):
             if lines[idx].lower().find("{{h0") >= 0:
                 lines.insert(idx+1, "{{mirrorpage}}")
+                found = True
                 break
+        if not found:
+            lines.insert(0, "{{mirrorpage}}")
         return ('\n'.join(lines))
     
     def check_success(self, res):
