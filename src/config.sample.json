@@ -4,12 +4,14 @@
     "reko": {
         "url": "https://rekowiki.tk/wiki/api.php",
         "botName": "<機械人用戶名稱>",
-        "botPassword": "<機械人用戶密碼>"
+        "botPassword": "<機械人用戶密碼>",
+        "skipNewer" true
     },
     "fandom": {
         "url": "https://newkomica-kari.fandom.com/zh-tw/api.php",
         "botName": "<機械人用戶名稱>",
-        "botPassword": "<機械人用戶密碼>"
+        "botPassword": "<機械人用戶密碼>",
+        "skipNewer" true
     },
     "pages": [
         "<你需要用步的頁面>",        

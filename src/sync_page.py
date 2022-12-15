@@ -1,7 +1,7 @@
 
 import json
 import requests
-import datetime from datetime
+from datetime import datetime
 
 def answer(equation):
     x = 0
@@ -32,6 +32,8 @@ class WikiSync():
             update_suc, res = self.post_edit(self.targets[key], title, srcCode, time=time)
             if update_suc:
                 print("頁面同步到{}成功!".format(key))
+            elif type(res) == str:
+                print("頁面同步到{}失敗:".format(key), res)
             else:
                 print("頁面同步到{}失敗:".format(key), res.status_code, res.text)
 
@@ -52,7 +54,9 @@ class WikiSync():
             return None
         page = next(iter(response['query']['pages'].values()))
         wikicode = page['revisions'][0]['*']
-        time = datetime.fromisoformat(page['revisions'][0]['timestamp'])
+        timestr = page['revisions'][0]['timestamp']
+        # remove the trailing z
+        time = datetime.fromisoformat(timestr[0:-1])
         return wikicode, time
 
     def edit_src(self, srcCode):
@@ -80,21 +84,16 @@ class WikiSync():
         return True, data
     
     def post_edit(self, target, title, srcCode, time=None):
-        if time != None and target.has('skipNewer') and target.get('skipNewer'):
+        if time != None and target.get('skipNewer'):
             targetCode, targetTime = self.query_page(
-                self, title,
-                url=target["url"]
+                title, url=target["url"]
             )
             if targetTime > time:
                 suc = False
-                data = {
-                    'title': title,
-                    'target': target,
-                    'message': 'target is newer than source',
-                    'targetTime': targetTime,
-                    'sourceTime': time
-                }
-                return suc, data
+                msg = 'skip-newer: %s on %s (%s) is newer than source (%s)' % (
+                    title, target['url'], targetTime, time
+                )
+                return suc, msg
 
         sess = requests.Session()
         # Get Request to fetch login token
@@ -139,7 +138,7 @@ class WikiSync():
         # check if captcha is needed
         suc, data = self.check_success(res)
         if not suc:
-            if "captcha" in data["edit"]:
+            if "edit" in data and "captcha" in data["edit"]:
                 captcha_id = data["edit"]["captcha"]["id"]
                 captcha_q = data["edit"]["captcha"]["question"]
                 ans = answer(captcha_q)
