@@ -1,6 +1,7 @@
 
 import json
 import requests
+import datetime from datetime
 
 def answer(equation):
     x = 0
@@ -19,7 +20,7 @@ class WikiSync():
         self.targets = targets
 
     def sync_page(self, title):
-        srcCode = self.query_page(title)  
+        srcCode, time = self.query_page(title)  
         if srcCode is None:
             print("錯誤！找不到頁面{}!".format(title))
             return
@@ -28,28 +29,31 @@ class WikiSync():
             return
         srcCode = self.edit_src(srcCode)
         for key in self.targets:
-            update_suc, res = self.post_edit(self.targets[key], title, srcCode)
+            update_suc, res = self.post_edit(self.targets[key], title, srcCode, time=time)
             if update_suc:
                 print("頁面同步到{}成功!".format(key))
             else:
                 print("頁面同步到{}失敗:".format(key), res.status_code, res.text)
 
-    def query_page(self, title):
+    def query_page(self, title, url=None):
+        if not url:
+            url = self.source["url"]
         response = requests.get(
-            self.source["url"],
+            url,
             params={
                 'action': 'query',
                 'format': 'json',
                 'titles': title,
                 'prop': 'revisions',
-                'rvprop': 'content'
+                'rvprop': 'content|timestamp'
             }
         ).json()
         if '-1' in response['query']['pages']:
             return None
         page = next(iter(response['query']['pages'].values()))
         wikicode = page['revisions'][0]['*']
-        return wikicode
+        time = datetime.fromisoformat(page['revisions'][0]['timestamp'])
+        return wikicode, time
 
     def edit_src(self, srcCode):
         lines = srcCode.split('\n')
@@ -75,7 +79,23 @@ class WikiSync():
             return False, data
         return True, data
     
-    def post_edit(self, target, title, srcCode):
+    def post_edit(self, target, title, srcCode, time=None):
+        if time != None and target.has('skipNewer') and target.get('skipNewer'):
+            targetCode, targetTime = self.query_page(
+                self, title,
+                url=target["url"]
+            )
+            if targetTime > time:
+                suc = False
+                data = {
+                    'title': title,
+                    'target': target,
+                    'message': 'target is newer than source',
+                    'targetTime': targetTime,
+                    'sourceTime': time
+                }
+                return suc, data
+
         sess = requests.Session()
         # Get Request to fetch login token
         para = {
