@@ -2,9 +2,12 @@
 
 ## 說明
 * 此為用作同步Reko Wiki (https://rekowiki.tk/wiki/index.php) 和 Fandom K wiki (https://newkomica-kari.fandom.com/zh-tw/wiki/%E9%A6%96%E9%A0%81) 頁面的腳本
-* 可選定一個wiki作編輯，之後用此腳本同步至另外的wiki中
+* 此腳本會檢查兩邊wiki的更新時間，以最遲更新時間為準，覆寫較早的更新時間的內容
+    * 例如條目在Reko時12:00出現更新，那Reko和Fandom的條目都會以12:00更新的版本為準，並把Fandom上的內容以Reko的內容覆寫
+    * 更新後會加上模板{{synchro}}，通知用戶檢查更新內容會否覆蓋掉自己的編輯
 * 留意：
-    * 此腳本暫只能同步正常頁面，暫不能用作同步模版、分頁、重定向頁、或是檔案等特殊頁面
+    * 此腳本暫只能同步正常頁面，不建議用作同步模版、分頁、或是檔案等特殊頁面
+    * 此腳本暫不能處理頁面易名的情況，請自己手動處理
     * 如頁面中有檔案，此腳本不能同時更新頁面中的檔案
 
 ## 必備條件
@@ -29,15 +32,7 @@
 * 設定 config.json
     * 複製 config.sample.json 到 config.json
     * config.json 一定要和腳本中的sync_page.py放在同一個資料夾中
-    * 修改 config.json 中的資料
-        * 設定來源
-        ```
-        "source": "fandom",
-        ```
-        * 設定目的地
-        ```
-        "target": [ "reko" ],
-        ```
+    * 修改 config.json 中的資料       
         * 設定Reko Wiki 機械人用戶資料
         ```
         "reko": {
@@ -71,7 +66,7 @@ python sync_page.py
 ```
 * 如成功執行，會出現以下訊息
 ```
-同步 fandom => ['reko']
+同步: ['Reko Wiki', 'New Komica wiki (仮)']
 同步頁面： カードファイト!! ヴァンガード overDress
 頁面同步到reko成功!
 ...
