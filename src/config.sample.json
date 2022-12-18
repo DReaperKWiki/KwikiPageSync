@@ -1,20 +1,22 @@
-{
-    "source": "<reko 或是 fandom>",
-    "target": [ "<reko 或是 fandom>" ],
-    "reko": {
-        "url": "https://rekowiki.tk/wiki/api.php",
-        "botName": "<機械人用戶名稱>",
-        "botPassword": "<機械人用戶密碼>"
-    },
-    "fandom": {
-        "url": "https://newkomica-kari.fandom.com/zh-tw/api.php",
-        "botName": "<機械人用戶名稱>",
-        "botPassword": "<機械人用戶密碼>"
-    },
+{    
+    "wiki": {
+        "reko": {
+            "name": "Reko Wiki",
+            "url": "https://rekowiki.tk/wiki/api.php",
+            "botName": "<機械人用戶名稱>",
+            "botPassword": "<機械人用戶密碼>"
+        },
+        "fandom": {            
+            "name": "New Komica wiki (仮)",
+            "url": "https://newkomica-kari.fandom.com/zh-tw/api.php",
+            "botName": "<機械人用戶名稱>",
+            "botPassword": "<機械人用戶密碼>"
+        }
+    },    
     "pages": [
-        "<你需要用步的頁面>",        
-		"<你需要用步的第二個頁面>",
-		"<你需要用步的第三個頁面>",
-		"<你需要用步的第...>"
+        "<你需要同步的頁面>",        
+		"<你需要同步的第二個頁面>",
+		"<你需要同步的第三個頁面>",
+		"<你需要同步的第...>"
     ]
 }
