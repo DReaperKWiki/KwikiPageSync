@@ -227,8 +227,12 @@ class WikiSync():
         if all_revision[latest_rev]["comment"] == WikiSync.AUTOBOT_COMMENT:
             self.logger.error("頁面{}經已同步".format(title))
             return
-        # edit source 
+        # ignore redirected page, this should handle beforehand
         wikicode = all_revision[latest_rev]['*']
+        if wikicode.startswith("#重新導向"):
+            self.logger.error("錯誤:頁面{}已經重新導向".format(title))
+            return
+        # edit source
         wikicode = self.edit_src(wikicode)
         # sync to other wikis
         for key in editors:
