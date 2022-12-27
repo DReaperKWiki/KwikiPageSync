@@ -5,7 +5,14 @@ import contextlib
 import datetime
 import calendar
 import time
+import logging
 
+
+FORMAT = '%(asctime)s: %(message)s'
+logging.basicConfig(format=FORMAT, datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO,  handlers=[
+    logging.FileHandler("auto_sync.log"),
+    logging.StreamHandler()
+])
 
 def answer(equation):
     x = 0
@@ -16,7 +23,6 @@ def answer(equation):
         y = equation.split('−')
         x = int(y[0])-int(y[1])
     return x
-
 
 @contextlib.contextmanager
 def open_editor(wikis):
@@ -79,12 +85,11 @@ class WikiEditor(object):
             self.info["url"],
             params={
                 'action': 'query',
-                'format': 'json', 
-                'prop': 'revisions',
-                'rvprop': 'timestamp|user|content|comment',
+                'format': 'json',
                 'list': 'recentchanges',
                 'rcstart': target_date.strftime("%Y-%m-%d") + 'T23:59:00Z', # why inverted?
                 'rcend': target_date.strftime("%Y-%m-%d") + 'T00:00:00Z',    # why inverted?
+                'rcprop': 'title|timestamp|user|comment',
                 'rclimit': 500,
                 'rctype': 'edit|new',
                 'rcdir': 'older'
@@ -120,7 +125,7 @@ class WikiEditor(object):
             return False, data
         return True, data
         
-    def post_edit(self, title, srcCode):
+    def post_edit(self, title, srcCode, autobot_comment):
         # GET request to fetch CSRF token
         para = {
             "action": "query",
@@ -137,7 +142,8 @@ class WikiEditor(object):
             "token": csrf_tokens,
             "format": "json",
             "text": srcCode,
-            "summary": "Wiki-Bot 同步更新", 
+            "watchlist": "unwatch",
+            "summary": autobot_comment, 
             "bot": True
         }
         res = self.sess.post(url=self.info["url"], data=para)
@@ -165,8 +171,11 @@ class WikiSync():
         "模板":"模板"
     }
 
-    def __init__ (self, wiki):
+    AUTOBOT_COMMENT = "Wiki-Bot 同步更新"
+
+    def __init__ (self, wiki, logger):
         self.wikis = wiki
+        self.logger = logger
 
     def get_recent_change(self):
         recent_update = {}
@@ -176,10 +185,11 @@ class WikiSync():
                 # print(key) 
                 lst = editors[key].query_recent_changes(datetime.date.today() + datetime.timedelta(days = -1))
                 for en in lst:
-                    if en["title"] not in recent_update:
-                        recent_update[en["title"]] = en["timestamp"]
-                    else:
-                        recent_update[en["title"]] = max(en["timestamp"], recent_update[en["title"]])
+                    if en["comment"] != WikiSync.AUTOBOT_COMMENT: # ignore auto update
+                        if en["title"] not in recent_update:
+                            recent_update[en["title"]] = en["timestamp"]
+                        else:
+                            recent_update[en["title"]] = max(en["timestamp"], recent_update[en["title"]])
         lst = [ [ recent_update[key], key ] for key in recent_update ]
         lst = sorted(lst)
         return [ en[1] for en in lst ]
@@ -190,7 +200,7 @@ class WikiSync():
                 try:
                     self.sync_page(editors, title)
                 except Exception as e:
-                    print("頁面{}同步失敗:".format(title), e)
+                    self.logger.error("頁面{}同步失敗:{}".format(title, str(e)))
 
     # sync page:
     # 1) check latest revision of all wiki site
@@ -205,7 +215,7 @@ class WikiSync():
         for key in editors:
             all_revision[key] = editors[key].query_page(title)
         if len([key for key in all_revision if all_revision[key] is not None]) == 0:
-            print("錯誤！找不到頁面{}!".format(title))
+            self.logger.error("錯誤！找不到頁面{}!".format(title))
             return
         # get latest revision
         def func(key):
@@ -214,8 +224,8 @@ class WikiSync():
             return all_revision[key]['timestamp']
         latest_rev = max(all_revision, key=func)
         # if the latest update is from wikibot, ignore
-        if all_revision[latest_rev]["comment"] == "Wiki-Bot 同步更新":
-            print("頁面{}經已同步".format(title))
+        if all_revision[latest_rev]["comment"] == WikiSync.AUTOBOT_COMMENT:
+            self.logger.error("頁面{}經已同步".format(title))
             return
         # edit source 
         wikicode = all_revision[latest_rev]['*']
@@ -225,7 +235,7 @@ class WikiSync():
             if key == latest_rev:
                 continue
             if all_revision[key] is None:
-                update_suc, res = editors[key].post_edit(title, wikicode)
+                update_suc, res = editors[key].post_edit(title, wikicode, WikiSync.AUTOBOT_COMMENT)
             else:
                 self.wikis[key], all_revision[key], all_revision[latest_rev]
                 newcode = self.compare_src({
@@ -234,13 +244,13 @@ class WikiSync():
                     "target_wiki_content": all_revision[key]["*"],
                 },wikicode)
                 if newcode is not None:
-                    update_suc, res = editors[key].post_edit(title, newcode)
+                    update_suc, res = editors[key].post_edit(title, newcode, WikiSync.AUTOBOT_COMMENT)
                 else:
                     update_suc = True
             if update_suc:
-                print("頁面{}同步到{}成功!".format(title, key))
+                self.logger.info("頁面{}同步到{}成功!".format(title, key))
             else:
-                print("頁面{}同步到{}失敗:".format(title, key), res.status_code, res.text)
+                self.logger.info("頁面{}同步到{}失敗: {} {}".format(title, key, res.status_code, res.text))
     
     def edit_src(self, srcCode):
         # change fandom-table to wikitable
@@ -291,25 +301,27 @@ class WikiSync():
 
 
 if __name__ == "__main__":
+    logger = logging.getLogger('wiki')
+
     # read config
     data = {}
     with open("config.json", "r") as jsonfile:
         data = json.load(jsonfile)    
 
     if (("pages" in data) and (len(data["pages"]) == 0)):
-        print("設定錯誤: 沒有頁面設定")
+        logger.error("設定錯誤: 沒有頁面設定")
         quit()
 
     if ("wiki" not in data) or (len(data["wiki"]) == 0):
-        print("設定錯誤: 沒有源頭")
+        logger.error("設定錯誤: 沒有源頭")
         quit()
 
-    print("同步:", [ data["wiki"][key]["name"] for key in data["wiki"]])        
+    logger.info("同步: {}".format(str([ data["wiki"][key]["name"] for key in data["wiki"] ])))
     
-    synchronizer = WikiSync(data["wiki"])
+    synchronizer = WikiSync(data["wiki"], logger)
 
     if "pages" not in data:
-        print("起動自動化同步模式")
+        logger.info("起動自動化同步模式")
         cur_list = synchronizer.get_recent_change()
         data["pages"] = cur_list
 
@@ -319,7 +331,7 @@ if __name__ == "__main__":
         can_sync = True
         for prefix in WikiSync.NON_SYNC_PREFFIX:
             if en.startswith(prefix):
-                print("錯誤:不能同步{} -".format(WikiSync.NON_SYNC_PREFFIX[prefix]), en)
+                logger.error("錯誤:不能同步{} - {}".format(WikiSync.NON_SYNC_PREFFIX[prefix], en))
                 can_sync = False
                 break
         if can_sync:
