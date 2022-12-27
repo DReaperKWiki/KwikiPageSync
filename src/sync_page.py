@@ -157,6 +157,14 @@ class WikiEditor(object):
 
 class WikiSync():
 
+    NON_SYNC_PREFFIX = {
+        "首頁":"首頁",
+        "檔案":"檔案",
+        "使用者": "使用者專頁",
+        "特殊":"特殊分頁",
+        "模板":"模板"
+    }
+
     def __init__ (self, wiki):
         self.wikis = wiki
 
@@ -175,20 +183,27 @@ class WikiSync():
         lst = [ [ recent_update[key], key ] for key in recent_update ]
         lst = sorted(lst)
         return [ en[1] for en in lst ]
-        
+    
+    def sync_all_pages(self, cur_list):
+        with open_editor(self.wikis) as editors:
+            for title in cur_list:
+                try:
+                    self.sync_page(editors, title)
+                except Exception as e:
+                    print("頁面{}同步失敗:".format(title), e)
+
     # sync page:
     # 1) check latest revision of all wiki site
     # 2) compare update time stamp, select the one with latest timestamp and longest text
     # 3) update all sites using the one with latest timestamp 
-    def sync_page(self, title):
+    def sync_page(self, editors, title):
         # user = page['revisions'][0]['user']
         # ts = page['revisions'][0]['timestamp']
         # comment = page['revisions'][0]['comment']
         # wikicode = page['revisions'][0]['*']
         all_revision = {}
-        with open_editor(self.wikis) as editors:
-            for key in editors:
-                all_revision[key] = editors[key].query_page(title)
+        for key in editors:
+            all_revision[key] = editors[key].query_page(title)
         if len([key for key in all_revision if all_revision[key] is not None]) == 0:
             print("錯誤！找不到頁面{}!".format(title))
             return
@@ -206,27 +221,26 @@ class WikiSync():
         wikicode = all_revision[latest_rev]['*']
         wikicode = self.edit_src(wikicode)
         # sync to other wikis
-        with open_editor(self.wikis) as editors:
-            for key in editors:
-                if key == latest_rev:
-                    continue
-                if all_revision[key] is None:
-                    update_suc, res = editors[key].post_edit(title, wikicode)
+        for key in editors:
+            if key == latest_rev:
+                continue
+            if all_revision[key] is None:
+                update_suc, res = editors[key].post_edit(title, wikicode)
+            else:
+                self.wikis[key], all_revision[key], all_revision[latest_rev]
+                newcode = self.compare_src({
+                    "src_wiki_name": self.wikis[latest_rev]["name"],
+                    "src_wiki_update": all_revision[latest_rev]["timestamp"],
+                    "target_wiki_content": all_revision[key]["*"],
+                },wikicode)
+                if newcode is not None:
+                    update_suc, res = editors[key].post_edit(title, newcode)
                 else:
-                    self.wikis[key], all_revision[key], all_revision[latest_rev]
-                    newcode = self.compare_src({
-                        "src_wiki_name": self.wikis[latest_rev]["name"],
-                        "src_wiki_update": all_revision[latest_rev]["timestamp"],
-                        "target_wiki_content": all_revision[key]["*"],
-                    },wikicode)
-                    if newcode is not None:
-                        update_suc, res = editors[key].post_edit(title, newcode)
-                    else:
-                        update_suc = True
-                if update_suc:
-                    print("頁面同步到{}成功!".format(key))
-                else:
-                    print("頁面同步到{}失敗:".format(key), res.status_code, res.text)
+                    update_suc = True
+            if update_suc:
+                print("頁面{}同步到{}成功!".format(title, key))
+            else:
+                print("頁面{}同步到{}失敗:".format(title, key), res.status_code, res.text)
     
     def edit_src(self, srcCode):
         # change fandom-table to wikitable
@@ -299,18 +313,16 @@ if __name__ == "__main__":
         cur_list = synchronizer.get_recent_change()
         data["pages"] = cur_list
 
+    # remove page not to be sync
+    cur_list = []
     for en in data["pages"]:
-        if en.startswith("首頁"):
-            print("錯誤:不能同步首頁")
-        elif en.startswith("檔案"):
-            print("錯誤:不能同步檔案")
-        elif en.startswith("使用者"):
-            print("錯誤:不能同步使用者專頁")
-        elif en.startswith("特殊"):
-            print("錯誤:不能同步特殊分頁")
-        elif en.startswith("模板"):
-            print("錯誤:不能同步模板")
-        else:
-            print("同步頁面：", en)
-            synchronizer.sync_page(en)
-
+        can_sync = True
+        for prefix in WikiSync.NON_SYNC_PREFFIX:
+            if en.startswith(prefix):
+                print("錯誤:不能同步{} -".format(WikiSync.NON_SYNC_PREFFIX[prefix]), en)
+                can_sync = False
+                break
+        if can_sync:
+            cur_list.append(en)
+    
+    synchronizer.sync_all_pages(cur_list)
