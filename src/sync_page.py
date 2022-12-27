@@ -6,6 +6,7 @@ import datetime
 import calendar
 import time
 
+
 def answer(equation):
     x = 0
     if '+' in equation:
@@ -72,6 +73,24 @@ class WikiEditor(object):
         }
         res = self.sess.get(url=self.info["url"], params=para)
         self.sess = None
+
+    def query_recent_changes(self, target_date):
+        response = requests.get(
+            self.info["url"],
+            params={
+                'action': 'query',
+                'format': 'json', 
+                'prop': 'revisions',
+                'rvprop': 'timestamp|user|content|comment',
+                'list': 'recentchanges',
+                'rcstart': target_date.strftime("%Y-%m-%d") + 'T23:59:00Z', # why inverted?
+                'rcend': target_date.strftime("%Y-%m-%d") + 'T00:00:00Z',    # why inverted?
+                'rclimit': 500,
+                'rctype': 'edit|new',
+                'rcdir': 'older'
+            }
+        ).json()
+        return response['query']['recentchanges']
 
     def query_page(self, title):
         response = requests.get(
@@ -141,7 +160,23 @@ class WikiSync():
     def __init__ (self, wiki):
         self.wikis = wiki
 
-    # TODO: sync page:
+    def get_recent_change(self):
+        recent_update = {}
+        # note: need to sort the list based on updated date time
+        with open_editor(self.wikis) as editors:
+            for key in editors:
+                # print(key) 
+                lst = editors[key].query_recent_changes(datetime.date.today() + datetime.timedelta(days = -1))
+                for en in lst:
+                    if en["title"] not in recent_update:
+                        recent_update[en["title"]] = en["timestamp"]
+                    else:
+                        recent_update[en["title"]] = max(en["timestamp"], recent_update[en["title"]])
+        lst = [ [ recent_update[key], key ] for key in recent_update ]
+        lst = sorted(lst)
+        return [ en[1] for en in lst ]
+        
+    # sync page:
     # 1) check latest revision of all wiki site
     # 2) compare update time stamp, select the one with latest timestamp and longest text
     # 3) update all sites using the one with latest timestamp 
@@ -247,7 +282,7 @@ if __name__ == "__main__":
     with open("config.json", "r") as jsonfile:
         data = json.load(jsonfile)    
 
-    if ("pages" not in data) or (len(data["pages"]) == 0):
+    if (("pages" in data) and (len(data["pages"]) == 0)):
         print("設定錯誤: 沒有頁面設定")
         quit()
 
@@ -258,6 +293,11 @@ if __name__ == "__main__":
     print("同步:", [ data["wiki"][key]["name"] for key in data["wiki"]])        
     
     synchronizer = WikiSync(data["wiki"])
+
+    if "pages" not in data:
+        print("起動自動化同步模式")
+        cur_list = synchronizer.get_recent_change()
+        data["pages"] = cur_list
 
     for en in data["pages"]:
         if en.startswith("首頁"):
