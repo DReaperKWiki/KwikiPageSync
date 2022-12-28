@@ -201,6 +201,7 @@ class WikiSync():
                     self.sync_page(editors, title)
                 except Exception as e:
                     self.logger.error("頁面{}同步失敗:{}".format(title, str(e)))
+                time.sleep(1) # wait one second to avoid massive edit
 
     # sync page:
     # 1) check latest revision of all wiki site
