@@ -168,7 +168,8 @@ class WikiSync():
         "檔案":"檔案",
         "使用者": "使用者專頁",
         "特殊":"特殊分頁",
-        "模板":"模板"
+        "模板:Mirrorpage":"模板:Mirrorpage",
+        "模板:Synchro":"模板:Synchro" 
     }
 
     AUTOBOT_COMMENT = "Wiki-Bot 同步更新"
@@ -234,7 +235,7 @@ class WikiSync():
             self.logger.error("錯誤:頁面{}已經重新導向".format(title))
             return
         # edit source
-        wikicode = self.edit_src(wikicode)
+        wikicode = self.edit_src(wikicode, title)
         # sync to other wikis
         for key in editors:
             if key == latest_rev:
@@ -247,7 +248,7 @@ class WikiSync():
                     "src_wiki_name": self.wikis[latest_rev]["name"],
                     "src_wiki_update": all_revision[latest_rev]["timestamp"],
                     "target_wiki_content": all_revision[key]["*"],
-                },wikicode)
+                },wikicode, title)
                 if newcode is not None:
                     update_suc, res = editors[key].post_edit(title, newcode, WikiSync.AUTOBOT_COMMENT)
                 else:
@@ -257,17 +258,17 @@ class WikiSync():
             else:
                 self.logger.info("頁面{}同步到{}失敗: {} {}".format(title, key, res.status_code, res.text))
     
-    def edit_src(self, srcCode):
+    def edit_src(self, srcCode, title):
         # change fandom-table to wikitable
         srcCode = srcCode.replace("fandom-table", "wikitable")
         # remove {{mirrorpage}} template
-        srcCode = self.remove_template(srcCode, ["mirrorpage", r"synchro\|[^\}]*"])
         # remove {{synchronized|<wiki name>|<timestamp>}} template
+        srcCode = self.remove_template(srcCode, ["mirrorpage", r"synchro\|[^\}]*"], title.startswith("模板:"))
         return srcCode
     
-    def compare_src(self, info, newCode):
+    def compare_src(self, info, newCode, title):
         oldCode = info["target_wiki_content"]
-        oldCode = self.edit_src(oldCode)
+        oldCode = self.edit_src(oldCode, title)
         # remove all space and new lines and check for changes
         oldCodeRaw = re.sub(r"\n|\s", "", oldCode).lower()
         newCodeRaw = re.sub(r"\n|\s", "", newCode).lower()
@@ -280,19 +281,24 @@ class WikiSync():
         dt = datetime.datetime.fromtimestamp(dt)
         # print("timestamp", dt, info['src_wiki_update'])
         newtmpl = "{{synchro|" + info["src_wiki_name"] + "|" + dt.strftime("%Y年%m月%d日 %H:%M") + "}}"
-        newCode = self.insert_template(newCode, newtmpl)
+        newCode = self.insert_template(newCode, newtmpl, title.startswith("模板:"))
         # replace too many new lines
         newCode = re.sub(r"\n\n\n[\n]*", "\n\n", newCode)
         return newCode
 
-    def remove_template(self, srcCode, templates):
+    def remove_template(self, srcCode, templates, is_template):
         lines = srcCode.split('\n')
         for idx in range(0, len(lines)):
             for tm in templates:
-                lines[idx] = re.sub(r"\{\{" + tm + r"\}\}", "", lines[idx])
+                if is_template:
+                    lines[idx] = re.sub(r"\<noinclude\>\{\{" + tm + r"\}\}\<\/noinclude\>", "", lines[idx])
+                else:
+                    lines[idx] = re.sub(r"\{\{" + tm + r"\}\}", "", lines[idx])
         return ('\n'.join(lines))
 
-    def insert_template(self, srcCode, template):
+    def insert_template(self, srcCode, template, is_template):
+        if is_template:
+            template = "<noinclude>" + template + "</noinclude>"
         lines = srcCode.split('\n')
         found = False
         for idx in range(0, len(lines)):
