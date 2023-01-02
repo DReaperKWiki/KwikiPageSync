@@ -10,7 +10,7 @@ import logging
 
 FORMAT = '%(asctime)s: %(message)s'
 logging.basicConfig(format=FORMAT, datefmt='%Y-%m-%d %H:%M:%S', level=logging.INFO,  handlers=[
-    logging.FileHandler("auto_sync.log"),
+    logging.FileHandler("auto_sync.log", encoding = "UTF-8"),
     logging.StreamHandler()
 ])
 
@@ -316,7 +316,7 @@ if __name__ == "__main__":
 
     # read config
     data = {}
-    with open("config.json", "r") as jsonfile:
+    with open("config.json", "r", encoding="utf-8") as jsonfile:
         data = json.load(jsonfile)    
 
     if (("pages" in data) and (len(data["pages"]) == 0)):
