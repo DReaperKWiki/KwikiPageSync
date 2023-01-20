@@ -168,6 +168,7 @@ class WikiSync():
         "檔案":"檔案",
         "使用者": "使用者專頁",
         "特殊":"特殊分頁",
+        "討論:":"討論分頁",
         "模板:Mirrorpage":"模板:Mirrorpage",
         "模板:Synchro":"模板:Synchro" 
     }
