@@ -232,7 +232,7 @@ class WikiSync():
             return
         # ignore redirected page, this should handle beforehand
         wikicode = all_revision[latest_rev]['*']
-        if wikicode.startswith("#重新導向"):
+        if wikicode.startswith("#重新導向") or wikicode.startswith("#REDIRECT") or wikicode.startswith("#重定向"):
             self.logger.error("錯誤:頁面{}已經重新導向".format(title))
             return
         # edit source
