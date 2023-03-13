@@ -92,13 +92,29 @@ class WikiEditor(object):
                 'list': 'allimages',
                 'aistart': target_date.strftime("%Y-%m-%d") + 'T23:59:00Z', # why inverted?
                 'aiend': target_date.strftime("%Y-%m-%d") + 'T00:00:00Z',    # why inverted?
-                'aiprop': 'title|timestamp|user|comment|url',
+                'aiprop': 'title|timestamp|user|comment',
                 'ailimit': 500,
                 'aidir': 'descending',
                 'aisort': 'timestamp'
             }
         ).json()        
         return response['query']['allimages']
+
+    def query_latest_version(self, file_name):
+        response = requests.get(
+            self.info["url"],
+            params={
+                'action': 'query',
+                'format': 'json',
+                'prop':'imageinfo',
+                'titles': file_name,
+                'iiprop': 'timestamp|user|url|comment'
+            }
+        ).json()
+        if '-1' in response['query']['pages']:
+            return None
+        img = next(iter(response['query']['pages'].values()))
+        return img['imageinfo'][0]
     
     def check_success(self, res, action):
         data = res.json()
@@ -157,38 +173,37 @@ class WikiSync():
         self.logger = logger
 
     def get_recent_upload(self):
-        page_info = {}
         recent_update = {}
         # note: need to sort the list based on updated date time
         with open_editor(self.wikis) as editors:            
-            for key in editors:                
-                page_info[key] = {}
+            for key in editors:
                 lst = editors[key].query_recent_upload(datetime.date.today() + datetime.timedelta(days = -1))
                 for en in lst:
-                    if en["comment"] != WikiSync.AUTOBOT_COMMENT: # ignore auto update                                                
-                        page_info[key][en["title"]] = en
+                    if en["comment"] != WikiSync.AUTOBOT_COMMENT: # ignore auto update
                         if en["title"] not in recent_update:
                             recent_update[en["title"]] = en["timestamp"]
                         else:                            
                             recent_update[en["title"]] = max(en["timestamp"], recent_update[en["title"]])
         lst = [ [ recent_update[key], key ] for key in recent_update ]
         lst = sorted(lst)        
-        return [ en[1] for en in lst ], page_info
+        return [ en[1] for en in lst ]
     
-    def sync_all_images(self, cur_list, img_info):
+    def sync_all_images(self, cur_list):
         # print(cur_list)
         with open_editor(self.wikis) as editors:
             for title in cur_list:                
                 try:
-                    self.sync_image(editors, title, img_info)
+                    self.sync_image(editors, title)
                 except Exception as e:
                     self.logger.error("{}同步失敗:{}".format(title, str(e)))
                 time.sleep(1) # wait one second to avoid massive edit
     
-    def sync_image(self, editors, title, img_info):        
-        all_revision = {
-            key: img_info[key][title] if title in img_info[key] else None for key in editors 
-        }                    
+    def sync_image(self, editors, title):
+        # query the latest version gfrom each wiki
+        all_revision = {}
+        for key in editors:
+            rev = editors[key].query_latest_version(title)
+            all_revision[key] = rev
         if len([key for key in all_revision if all_revision[key] is not None]) == 0:
             self.logger.error("錯誤！找不到{}!".format(title))
             return        
@@ -248,6 +263,6 @@ if __name__ == "__main__":
     synchronizer = WikiSync(data["wiki"], logger)
 
     logger.info("檢查最近更新檔案")
-    cur_list, img_info = synchronizer.get_recent_upload()
+    cur_list = synchronizer.get_recent_upload()
 
-    synchronizer.sync_all_images(cur_list, img_info)
+    synchronizer.sync_all_images(cur_list)
