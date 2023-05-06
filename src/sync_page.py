@@ -230,11 +230,7 @@ class WikiSync():
         if all_revision[latest_rev]["comment"] == WikiSync.AUTOBOT_COMMENT:
             self.logger.error("頁面{}經已同步".format(title))
             return
-        # ignore redirected page, this should handle beforehand
         wikicode = all_revision[latest_rev]['*']
-        if wikicode.startswith("#重新導向") or wikicode.startswith("#REDIRECT") or wikicode.startswith("#重定向"):
-            self.logger.error("錯誤:頁面{}已經重新導向".format(title))
-            return
         # edit source
         wikicode = self.edit_src(wikicode, title)
         # sync to other wikis
@@ -301,14 +297,18 @@ class WikiSync():
         if is_template:
             template = "<noinclude>" + template + "</noinclude>"
         lines = srcCode.split('\n')
-        found = False
-        for idx in range(0, len(lines)):
-            if lines[idx].lower().find("{{h0") >= 0:
-                lines.insert(idx+1, template)
-                found = True
-                break
-        if not found:
-            lines.insert(0, template)
+        # for redirected page, place the template at the bottom, otherwises the wiki will think it is just a normal page
+        if srcCode.startswith("#重新導向") or srcCode.startswith("#REDIRECT") or srcCode.startswith("#重定向"):
+            lines.append(template)
+        else:            
+            found = False
+            for idx in range(0, len(lines)):
+                if lines[idx].lower().find("{{h0") >= 0:
+                    lines.insert(idx+1, template)
+                    found = True
+                    break
+            if not found:
+                lines.insert(0, template)
         return ('\n'.join(lines))
 
 
