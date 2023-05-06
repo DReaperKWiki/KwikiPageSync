@@ -178,6 +178,7 @@ class WikiSync():
     def __init__ (self, wiki, logger):
         self.wikis = wiki
         self.logger = logger
+        self.hidden_pages = [] # for redirect pages
 
     def get_recent_change(self):
         recent_update = {}
@@ -199,6 +200,13 @@ class WikiSync():
     def sync_all_pages(self, cur_list):
         with open_editor(self.wikis) as editors:
             for title in cur_list:
+                try:
+                    self.sync_page(editors, title)
+                except Exception as e:
+                    self.logger.error("頁面{}同步失敗:{}".format(title, str(e)))
+                time.sleep(1) # wait one second to avoid massive edit
+            hidden_list = self.hidden_pages
+            for title in hidden_list:
                 try:
                     self.sync_page(editors, title)
                 except Exception as e:
@@ -231,6 +239,13 @@ class WikiSync():
             self.logger.error("頁面{}經已同步".format(title))
             return
         wikicode = all_revision[latest_rev]['*']
+        # for redirect page, need to syn the target page as well
+        if wikicode.startswith("#重新導向") or wikicode.startswith("#REDIRECT") or wikicode.startswith("#重定向"):
+            extract_regex = r"\[\[(.+)\]\]"
+            result = re.search(extract_regex, wikicode)
+            if result is not None:
+                new_title = result.group(1)
+                self.hidden_pages.append(new_title)
         # edit source
         wikicode = self.edit_src(wikicode, title)
         # sync to other wikis
